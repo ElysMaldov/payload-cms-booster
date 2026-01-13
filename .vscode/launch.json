@@ -19,9 +19,9 @@
       "request": "launch",
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}",
-        "--disable-extensions"
-        // "--workspace",
-        // "${workspaceFolder}/payload-cms-booster.code-workspace"
+        "--disable-extensions",
+        "--workspace",
+        "/c/Users/emuia/programming/projects/akasia-education-lms"
       ],
       "outFiles": ["${workspaceFolder}/out/**/*.js"],
       "preLaunchTask": "${defaultBuildTask}"
