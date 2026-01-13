@@ -4,11 +4,11 @@ import { getWebviewContent } from "./getWebviewContent";
 
 export function activate(context: vscode.ExtensionContext) {
   const disposable = vscode.commands.registerCommand(
-    "create-react-webview.helloWorld",
+    "payload-cms-booster.visualize",
     async () => {
       const panel = vscode.window.createWebviewPanel(
-        "reactWebview",
-        "React Webview",
+        "payloadCMSVisualizer",
+        "Payload CMS Visualizer",
         vscode.ViewColumn.One,
         {
           enableScripts: true,

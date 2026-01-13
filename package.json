@@ -1,6 +1,6 @@
 {
-  "name": "create-react-webview",
-  "displayName": "create-react-webview",
+  "name": "payload-cms-booster",
+  "displayName": "payload-cms-booster",
   "description": "",
   "version": "0.0.1",
   "engines": {
@@ -14,8 +14,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "create-react-webview.helloWorld",
-        "title": "Hello World"
+        "command": "payload-cms-booster.visualize",
+        "title": "Payload CMS Booster: Visualize"
       }
     ]
   },
