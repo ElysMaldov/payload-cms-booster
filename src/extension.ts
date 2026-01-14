@@ -34,8 +34,14 @@ export function activate(context: vscode.ExtensionContext) {
             `Found ${collections.length} collections`
           );
         } catch (error) {
+          console.error(
+            "Payload CMS Booster: Failed to parse payload config:",
+            error
+          );
           vscode.window.showErrorMessage(
-            `Failed to parse payload config: ${error}`
+            `Failed to parse payload config: ${
+              error instanceof Error ? error.message : String(error)
+            }`
           );
         }
       }

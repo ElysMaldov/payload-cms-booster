@@ -1,14 +1,27 @@
-import { Project, SyntaxKind, Node, SourceFile, ObjectLiteralExpression, PropertyAssignment, StringLiteral, NumericLiteral, BooleanLiteral } from 'ts-morph';
-import { CollectionInfo, FieldInfo, RelationshipInfo } from '../types/payload';
+import {
+  Project,
+  SyntaxKind,
+  Node,
+  SourceFile,
+  ObjectLiteralExpression,
+  PropertyAssignment,
+  StringLiteral,
+  NumericLiteral,
+  BooleanLiteral
+} from "ts-morph";
+import { CollectionInfo, FieldInfo, RelationshipInfo } from "../types/payload";
 
 /**
  * Parse Payload CMS config and extract collection information
  * @param configPath Absolute path to payload.config.ts
  * @returns Array of CollectionInfo with fields and relationships
  */
-export async function parsePayloadConfig(configPath: string): Promise<CollectionInfo[]> {
+export async function parsePayloadConfig(
+  configPath: string
+): Promise<CollectionInfo[]> {
+  // Create project WITHOUT in-memory filesystem to read actual files from disk
   const project = new Project({
-    useInMemoryFileSystem: true,
+    useInMemoryFileSystem: false
   });
 
   // Add the config file to the project
@@ -80,11 +93,12 @@ function findCollectionsInConfig(sourceFile: SourceFile): string[] {
   const collections: string[] = [];
 
   // Find buildConfig call
-  const buildConfigCalls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)
-    .filter(call => {
+  const buildConfigCalls = sourceFile
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .filter((call) => {
       const expression = call.getExpression();
       if (Node.isIdentifier(expression)) {
-        return expression.getText() === 'buildConfig';
+        return expression.getText() === "buildConfig";
       }
       return false;
     });
@@ -95,7 +109,7 @@ function findCollectionsInConfig(sourceFile: SourceFile): string[] {
       const configArg = args[0];
       if (Node.isObjectLiteralExpression(configArg)) {
         // Find the collections property
-        const collectionsProp = configArg.getProperty('collections');
+        const collectionsProp = configArg.getProperty("collections");
         if (collectionsProp && Node.isPropertyAssignment(collectionsProp)) {
           const collectionsValue = collectionsProp.getInitializer();
           if (Node.isArrayLiteralExpression(collectionsValue)) {
@@ -123,13 +137,13 @@ function findCollectionsInConfig(sourceFile: SourceFile): string[] {
  */
 function resolveImportPath(importPath: string, configDir: string): string {
   // Handle @/ alias - resolve to {configDir}/../src/
-  if (importPath.startsWith('@/')) {
+  if (importPath.startsWith("@/")) {
     const relativePath = importPath.slice(2); // Remove @/
     return `${configDir}/../src/${relativePath}`;
   }
 
   // Handle relative paths
-  if (importPath.startsWith('./') || importPath.startsWith('../')) {
+  if (importPath.startsWith("./") || importPath.startsWith("../")) {
     return `${configDir}/${importPath}`;
   }
 
@@ -149,7 +163,9 @@ async function parseCollectionFile(
   // Get the import path for this collection
   const importPath = importMap.get(collectionName);
   if (!importPath) {
-    console.warn(`Could not find import path for collection: ${collectionName}`);
+    console.warn(
+      `Could not find import path for collection: ${collectionName}`
+    );
     return null;
   }
 
@@ -157,11 +173,13 @@ async function parseCollectionFile(
   let resolvedPath = resolveImportPath(importPath, configDir);
 
   // Try different extensions
-  const extensions = ['.ts', '.tsx', '.js', '.jsx'];
+  const extensions = [".ts", ".tsx", ".js", ".jsx"];
   let collectionSourceFile: SourceFile | undefined;
 
   for (const ext of extensions) {
-    const pathWithExt = resolvedPath.endsWith(ext) ? resolvedPath : resolvedPath + ext;
+    const pathWithExt = resolvedPath.endsWith(ext)
+      ? resolvedPath
+      : resolvedPath + ext;
     try {
       collectionSourceFile = project.addSourceFileAtPath(pathWithExt);
       if (collectionSourceFile) {
@@ -179,15 +197,22 @@ async function parseCollectionFile(
   }
 
   // Find the CollectionConfig object
-  const collectionConfig = findCollectionConfig(collectionSourceFile, collectionName);
+  const collectionConfig = findCollectionConfig(
+    collectionSourceFile,
+    collectionName
+  );
   if (!collectionConfig) {
     console.warn(`Could not find CollectionConfig for: ${collectionName}`);
     return null;
   }
 
   // Extract collection info
-  const slug = getPropertyValue<string>(collectionConfig, 'slug', 'string');
-  const label = getPropertyValue<string | undefined>(collectionConfig, 'label', 'optionalString');
+  const slug = getPropertyValue<string>(collectionConfig, "slug", "string");
+  const label = getPropertyValue<string | undefined>(
+    collectionConfig,
+    "label",
+    "optionalString"
+  );
   const fields = extractFields(collectionConfig);
 
   // Build relationships from fields
@@ -198,16 +223,21 @@ async function parseCollectionFile(
     slug,
     label,
     fields,
-    relationships,
+    relationships
   };
 }
 
 /**
  * Find the CollectionConfig object by name
  */
-function findCollectionConfig(sourceFile: SourceFile, collectionName: string): ObjectLiteralExpression | null {
+function findCollectionConfig(
+  sourceFile: SourceFile,
+  collectionName: string
+): ObjectLiteralExpression | null {
   // Look for variable declarations with the collection name
-  const variableDeclarations = sourceFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration);
+  const variableDeclarations = sourceFile.getDescendantsOfKind(
+    SyntaxKind.VariableDeclaration
+  );
 
   for (const varDecl of variableDeclarations) {
     const name = varDecl.getName();
@@ -220,13 +250,18 @@ function findCollectionConfig(sourceFile: SourceFile, collectionName: string): O
   }
 
   // Also check for direct object literals that might be the collection config
-  const objectLiterals = sourceFile.getDescendantsOfKind(SyntaxKind.ObjectLiteralExpression);
+  const objectLiterals = sourceFile.getDescendantsOfKind(
+    SyntaxKind.ObjectLiteralExpression
+  );
 
   for (const obj of objectLiterals) {
-    const slugProp = obj.getProperty('slug');
+    const slugProp = obj.getProperty("slug");
     if (slugProp && Node.isPropertyAssignment(slugProp)) {
       const slugValue = slugProp.getInitializer();
-      if (Node.isStringLiteral(slugValue) && slugValue.getText() === `"${collectionName}"`) {
+      if (
+        Node.isStringLiteral(slugValue) &&
+        slugValue.getText() === `"${collectionName}"`
+      ) {
         return obj;
       }
     }
@@ -241,46 +276,46 @@ function findCollectionConfig(sourceFile: SourceFile, collectionName: string): O
 function getPropertyValue<T>(
   obj: ObjectLiteralExpression,
   propName: string,
-  expectedType: 'string' | 'number' | 'boolean' | 'optionalString'
+  expectedType: "string" | "number" | "boolean" | "optionalString"
 ): T {
   const prop = obj.getProperty(propName);
   if (!prop || !Node.isPropertyAssignment(prop)) {
-    return '' as T;
+    return "" as T;
   }
 
   const value = prop.getInitializer();
   if (!value) {
-    return '' as T;
+    return "" as T;
   }
 
   switch (expectedType) {
-    case 'string':
+    case "string":
       if (Node.isStringLiteral(value)) {
-        return value.getText().replace(/"/g, '') as T;
+        return value.getText().replace(/"/g, "") as T;
       }
       break;
-    case 'optionalString':
+    case "optionalString":
       if (Node.isStringLiteral(value)) {
-        return value.getText().replace(/"/g, '') as T;
+        return value.getText().replace(/"/g, "") as T;
       }
       break;
-    case 'number':
+    case "number":
       if (Node.isNumericLiteral(value)) {
         return parseFloat(value.getText()) as T;
       }
       break;
-    case 'boolean':
+    case "boolean":
       if (Node.isIdentifier(value)) {
         // Handle true/false identifiers
         const text = value.getText();
-        if (text === 'true' || text === 'false') {
-          return (text === 'true') as unknown as T;
+        if (text === "true" || text === "false") {
+          return (text === "true") as unknown as T;
         }
       }
       break;
   }
 
-  return '' as T;
+  return "" as T;
 }
 
 /**
@@ -289,7 +324,7 @@ function getPropertyValue<T>(
 function extractFields(collectionConfig: ObjectLiteralExpression): FieldInfo[] {
   const fields: FieldInfo[] = [];
 
-  const fieldsProp = collectionConfig.getProperty('fields');
+  const fieldsProp = collectionConfig.getProperty("fields");
   if (!fieldsProp || !Node.isPropertyAssignment(fieldsProp)) {
     return fields;
   }
@@ -315,10 +350,18 @@ function extractFields(collectionConfig: ObjectLiteralExpression): FieldInfo[] {
  * Parse a single field object
  */
 function parseField(fieldObj: ObjectLiteralExpression): FieldInfo | null {
-  const name = getPropertyValue<string>(fieldObj, 'name', 'string');
-  const type = getPropertyValue<string>(fieldObj, 'type', 'string');
-  const relationTo = getPropertyValue<string | undefined>(fieldObj, 'relationTo', 'optionalString');
-  const hasMany = getPropertyValue<boolean | undefined>(fieldObj, 'hasMany', 'boolean');
+  const name = getPropertyValue<string>(fieldObj, "name", "string");
+  const type = getPropertyValue<string>(fieldObj, "type", "string");
+  const relationTo = getPropertyValue<string | undefined>(
+    fieldObj,
+    "relationTo",
+    "optionalString"
+  );
+  const hasMany = getPropertyValue<boolean | undefined>(
+    fieldObj,
+    "hasMany",
+    "boolean"
+  );
 
   if (!name || !type) {
     return null;
@@ -328,25 +371,28 @@ function parseField(fieldObj: ObjectLiteralExpression): FieldInfo | null {
     name,
     type,
     relationTo,
-    hasMany: hasMany || undefined,
+    hasMany: hasMany || undefined
   };
 }
 
 /**
  * Build relationship info from fields
  */
-function buildRelationships(fields: FieldInfo[], collectionSlug: string): RelationshipInfo[] {
+function buildRelationships(
+  fields: FieldInfo[],
+  collectionSlug: string
+): RelationshipInfo[] {
   const relationships: RelationshipInfo[] = [];
 
   for (const field of fields) {
-    if (field.type === 'relationship' && field.relationTo) {
-      const relationType = field.hasMany ? 'hasMany' : 'belongsTo';
+    if (field.type === "relationship" && field.relationTo) {
+      const relationType = field.hasMany ? "hasMany" : "belongsTo";
 
       relationships.push({
         fromCollection: collectionSlug,
         fromField: field.name,
         toCollection: field.relationTo,
-        relationType,
+        relationType
       });
     }
   }
