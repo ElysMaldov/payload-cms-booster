@@ -172,6 +172,10 @@ async function parseCollectionFile(
   // Resolve to actual file path
   let resolvedPath = resolveImportPath(importPath, configDir);
 
+  // Normalize path to remove redundant ../ segments
+  resolvedPath = resolvedPath.replace(/\\/g, "/"); // Normalize backslashes
+  resolvedPath = resolvedPath.replace(/\/src\/\.\.\/src\//, "/src/"); // Fix @/ alias duplication
+
   // Try different extensions
   const extensions = [".ts", ".tsx", ".js", ".jsx"];
   let collectionSourceFile: SourceFile | undefined;
@@ -188,6 +192,19 @@ async function parseCollectionFile(
       }
     } catch {
       // Try next extension
+    }
+  }
+
+  // If still not found, try index.ts inside directory
+  if (!collectionSourceFile) {
+    const indexPath = resolvedPath.endsWith("/") ? resolvedPath + "index.ts" : resolvedPath + "/index.ts";
+    try {
+      collectionSourceFile = project.addSourceFileAtPath(indexPath);
+      if (collectionSourceFile) {
+        resolvedPath = indexPath;
+      }
+    } catch {
+      // Give up
     }
   }
 
