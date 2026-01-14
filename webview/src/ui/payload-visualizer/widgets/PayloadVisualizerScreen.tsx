@@ -6,43 +6,120 @@ import {
   ReactFlow,
   addEdge,
   applyEdgeChanges,
-  applyNodeChanges
+  applyNodeChanges,
+  type Edge,
+  type Node
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
-const initialNodes = [
-  { id: "n1", position: { x: 0, y: 0 }, data: { label: "Node 1" } },
-  { id: "n2", position: { x: 0, y: 100 }, data: { label: "Node 2" } }
-];
-const initialEdges = [{ id: "n1-n2", source: "n1", target: "n2" }];
+interface Window {
+  __PAYLOAD_COLLECTIONS__: CollectionInfo[];
+}
+
+interface CollectionInfo {
+  slug: string;
+  name: string;
+  label?: string;
+  fields: FieldInfo[];
+}
+
+interface FieldInfo {
+  name: string;
+  type:
+    | "relationship"
+    | "text"
+    | "number"
+    | "boolean"
+    | "array"
+    | "group"
+    | "richText"
+    | "upload"
+    | "blocks"
+    | "json"
+    | "date"
+    | "email"
+    | "textarea"
+    | "select"
+    | "code"
+    | "point"
+    | "radio"
+    | "checkbox"
+    | "row"
+    | "collapsible";
+  relationTo?: string;
+}
 
 export default function PayloadVisualizerScreen() {
-  const [nodes, setNodes] = useState(initialNodes);
-  const [edges, setEdges] = useState(initialEdges);
+  // Get collections from global variable
+  const collections: CollectionInfo[] =
+    (window as unknown as Window).__PAYLOAD_COLLECTIONS__ || [];
 
-  const onNodesChange = useCallback(
-    (changes) =>
-      setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
+  // Transform collections to nodes
+  const nodes = useMemo(() => {
+    if (collections.length === 0) {
+      return [
+        {
+          id: "empty",
+          position: { x: 0, y: 0 },
+          data: { label: "No collections found" },
+          type: "default"
+        }
+      ];
+    }
+    return collections.map((collection, index) => ({
+      id: collection.slug,
+      position: { x: index * 250, y: index * 100 },
+      data: { label: collection.label || collection.name },
+      type: "default"
+    }));
+  }, [collections]);
+
+  // Transform to edges for relationship fields
+  const edges = useMemo(() => {
+    if (collections.length === 0) {
+      return [];
+    }
+    return collections.flatMap((collection) =>
+      collection.fields
+        .filter((field) => field.type === "relationship" && field.relationTo)
+        .map((field) => ({
+          id: `${collection.slug}-${field.name}`,
+          source: collection.slug,
+          target: field.relationTo || "",
+          label: field.name,
+          type: "smoothstep" as const
+        }))
+    );
+  }, [collections]);
+
+  const [nodeState, setNodeState] = useState<Node[]>(nodes);
+  const [edgeState, setEdgeState] = useState<Edge[]>(edges);
+
+  // Update state when nodes/edges change
+  const handleNodesChange = useCallback(
+    (changes: Parameters<typeof applyNodeChanges>[0]) =>
+      setNodeState((nds) => applyNodeChanges(changes, nds) as Node[]),
     []
   );
-  const onEdgesChange = useCallback(
-    (changes) =>
-      setEdges((edgesSnapshot) => applyEdgeChanges(changes, edgesSnapshot)),
+  const handleEdgesChange = useCallback(
+    (changes: Parameters<typeof applyEdgeChanges>[0]) =>
+      setEdgeState((eds) => applyEdgeChanges(changes, eds) as Edge[]),
     []
   );
   const onConnect = useCallback(
-    (params) => setEdges((edgesSnapshot) => addEdge(params, edgesSnapshot)),
+    (params: Parameters<typeof addEdge>[0]) =>
+      setEdgeState((eds) => addEdge(params, eds) as Edge[]),
     []
   );
 
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
+        nodes={nodeState}
+        edges={edgeState}
+        onNodesChange={handleNodesChange}
+        onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
         fitView
       >

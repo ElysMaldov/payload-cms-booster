@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
+import { CollectionInfo } from "./types/payload";
 
 const PORT = 5174;
 
@@ -71,6 +72,7 @@ function createDevHTML(
     nonce: string,
     uris: DevUris,
     csp: string,
+    collectionsJson: string,
 ): string {
     return `
     <!doctype html>
@@ -83,6 +85,10 @@ function createDevHTML(
         </head>
         <body>
         <div id="root"></div>
+
+        <script>
+            window.__PAYLOAD_COLLECTIONS__ = ${collectionsJson};
+        </script>
 
         <script type="module" nonce="${nonce}">
             import RefreshRuntime from "${uris.refreshUri.toString(true)}";
@@ -104,6 +110,7 @@ function processProductionHtml(
     webview: vscode.Webview,
     distPath: string,
     nonce: string,
+    collectionsJson: string,
 ): string {
     const processedHtml = htmlContent.replace(
         /(href|src)=["']([^"']*)["']/g,
@@ -133,20 +140,26 @@ function processProductionHtml(
         .replace(
             /<script([^>]*)type="module"([^>]*)>/g,
             `<script$1type="module"$2 nonce="${nonce}">`,
+        )
+        .replace(
+            "</body>",
+            `<script>window.__PAYLOAD_COLLECTIONS__ = ${collectionsJson};</script></body>`,
         );
 }
 
 export async function getWebviewContent(
     context: vscode.ExtensionContext,
     webview: vscode.Webview,
+    collections: CollectionInfo[] = [],
 ): Promise<string> {
     const isDev = context.extensionMode === vscode.ExtensionMode.Development;
     const nonce = randomUUID();
+    const collectionsJson = JSON.stringify(collections);
 
     if (isDev) {
         const uris = await getDevUris();
         const csp = createDevCSP(webview, nonce, uris.origin, uris.wsOrigin);
-        return createDevHTML(nonce, uris, csp);
+        return createDevHTML(nonce, uris, csp, collectionsJson);
     }
 
     const htmlPath = path.join(
@@ -163,5 +176,6 @@ export async function getWebviewContent(
         webview,
         distPath,
         nonce,
+        collectionsJson,
     );
 }
